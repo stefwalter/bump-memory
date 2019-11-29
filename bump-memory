@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+
+PORT     = 8089
+URL      = "http://127.0.0.1:8089/requests/"
+PASSWORD = "foobar"
+
+import argparse
+import base64
+import os
+import random
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+
+import http.client
+http.client.HTTPConnection.debuglevel = 1
+
+class DirCache():
+    def __init__(self, path):
+        self.path = path
+        self.mtime = None
+        self.listing = []
+
+    def refresh(self):
+        try:
+            mtime = os.path.getmtime(self.path)
+        except os.FileNotFoundError:
+            mtime = None
+        if mtime == self.mtime:
+            return
+        self.mtime = mtime
+        if self.mtime is None:
+            self.listing = []
+        else:
+            self.listing = os.listdir(self.path)
+
+    def __len__(self):
+        self.refresh()
+        return self.listing.__len__()
+
+    def __getitem__(self, key):
+        self.refresh()
+        return self.listing.__getitem__(key)
+
+def launch():
+    env = os.environ.copy().update(
+        { "VLC_VERBOSE": "3" }
+    )
+
+    proc = subprocess.Popen([
+        "vlc", "-I", "http",
+        "--http-port", str(PORT),
+        "--http-password", PASSWORD,
+    ], env=env, stdin=subprocess.DEVNULL)
+
+    return proc
+
+def authorization():
+    credentials = base64.b64encode(b":" + str.encode(PASSWORD))
+    return "Basic " + credentials.decode('ascii')
+
+def request(path, **options):
+    url = urllib.parse.urljoin(URL, path)
+    qs = urllib.parse.urlencode(options, quote_via=urllib.parse.quote)
+    sys.stderr.write(qs + "\n")
+    req = urllib.request.Request(url + "?" + qs)
+    req.add_header("Authorization", authorization())
+    return urllib.request.urlopen(req).read().decode('utf-8')
+
+def choose(path, caches):
+    if os.path.isfile(path):
+        return path
+    elif os.path.isdir(path):
+        if path not in caches:
+            caches[path] = DirCache(path)
+        cache = caches[path]
+        if len(cache) == 0:
+            return None
+        for x in range(1, 10):
+            name = random.choice(cache)
+            choice = choose(os.path.join(path, name), caches)
+            if choice is not None:
+                return choice
+    else:
+        return None
+
+# This represents a way of storing files where
+# TODO xxxxxxxxxxxxxxxx
+def dated(path):
+    # The name of the folder should have a date and text
+    directory = os.path.basename(os.path.dirname(path))
+    when, unused, title = directory.partition(" ")
+    return { "when": when, "description": title }
+
+def loop(proc, library, caches, first, metadata):
+    # Wait for one second and check if process exited
+    try:
+        proc.wait(first and 1 or 9)
+        raise RuntimeError("vlc exited unexpectedly: {}".format(proc.returncode))
+    except subprocess.TimeoutExpired:
+        pass
+
+    # Ask for status
+    status = request("status.xml")
+
+    # TODO: How do we know if a something neeeds to be added
+
+    choice = choose(library, caches)
+    if choice:
+        meta = metadata(choice)
+        title = "{when}: {description}".format(**meta)
+
+        fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
+
+        # This queues the file nicely
+        command = "in_play"
+        request("status.xml", command=command, input=fileurl, name=title)
+
+# Clean up the vlc process
+def kill(proc):
+    if proc.returncode is None:
+        proc.kill()
+        proc.wait()
+    return proc.returncode
+
+def main():
+
+    parser = argparse.ArgumentParser(description="Displays photos or videos via VLC")
+    parser.add_argument("library", help="path to photo library")
+    opts = parser.parse_args()
+
+    caches = { }
+    proc = launch()
+    try:
+        first = True
+        while True:
+            loop(proc, opts.library, caches, first, metadata=dated)
+            if first:
+                request("status.xml", command="fullscreen")
+            first = False
+
+    except (KeyboardInterrupt, SystemExit):
+        kill(proc)
+        raise
+
+    return kill(proc)
+
+if __name__ == '__main__':
+    sys.exit(main())
