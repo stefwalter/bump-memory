@@ -12,6 +12,7 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree
 
 import http.client
 http.client.HTTPConnection.debuglevel = 1
@@ -66,7 +67,7 @@ def request(path, **options):
     sys.stderr.write(qs + "\n")
     req = urllib.request.Request(url + "?" + qs)
     req.add_header("Authorization", authorization())
-    return urllib.request.urlopen(req).read().decode('utf-8')
+    return xml.etree.ElementTree.parse(urllib.request.urlopen(req))
 
 def choose(path, caches):
     if os.path.isfile(path):
@@ -93,29 +94,60 @@ def dated(path):
     when, unused, title = directory.partition(" ")
     return { "when": when, "description": title }
 
-def loop(proc, library, caches, first, metadata):
-    # Wait for one second and check if process exited
-    try:
-        proc.wait(first and 1 or 9)
-        raise RuntimeError("vlc exited unexpectedly: {}".format(proc.returncode))
-    except subprocess.TimeoutExpired:
-        pass
+def loop(library, metadata):
+    caches = { }
+    first = False
+    proc = None
 
-    # Ask for status
-    status = request("status.xml")
+    while True:
+        if proc is None:
+            proc = launch()
+            first = True
 
-    # TODO: How do we know if a something neeeds to be added
+        # Wait for one second and check if process exited
+        try:
+            if proc is not None:
+                proc.wait(1)
+            proc = None
+            continue
+        except subprocess.TimeoutExpired:
+            pass
 
-    choice = choose(library, caches)
-    if choice:
-        meta = metadata(choice)
-        title = "{when}: {description}".format(**meta)
+        # Ask for status and check if on playlist item
+        status = request("status.xml")
+        current = status.find('currentplid')
 
-        fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
+        if current is not None:
+            playlist = request("playlist.xml")
+            remaining = 0
+            for leaf in playlist.iter("leaf"):
+                if remaining:
+                    remaining += 1
+                else:
+                    id = leaf.attrib.get("id")
+                    if id == current.text:
+                        remaining = 1
+                    else:
+                        request("status.xml", command="pl_delete", id=id)
 
-        # This queues the file nicely
-        command = "in_play"
-        request("status.xml", command=command, input=fileurl, name=title)
+            if remaining > 3:
+                continue
+
+        # Queue a new item
+        choice = choose(library, caches)
+        if choice:
+            meta = metadata(choice)
+            title = "{when}: {description}".format(**meta)
+
+            fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
+
+            # This queues the file nicely
+            request("status.xml", command="in_enqueue", input=fileurl, name=title)
+
+        if first:
+            request("status.xml", command="pl_play")
+            request("status.xml", command="fullscreen")
+            first = False
 
 # Clean up the vlc process
 def kill(proc):
@@ -130,19 +162,11 @@ def main():
     parser.add_argument("library", help="path to photo library")
     opts = parser.parse_args()
 
-    caches = { }
-    proc = launch()
     try:
-        first = True
-        while True:
-            loop(proc, opts.library, caches, first, metadata=dated)
-            if first:
-                request("status.xml", command="fullscreen")
-            first = False
+        loop(opts.library, metadata=dated)
 
-    except (KeyboardInterrupt, SystemExit):
-        kill(proc)
-        raise
+    finally:
+        pass
 
     return kill(proc)
 
