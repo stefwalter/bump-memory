@@ -22,6 +22,7 @@ class DirCache():
         self.path = path
         self.mtime = None
         self.listing = []
+        self.offset = 0
 
     def refresh(self):
         try:
@@ -35,6 +36,8 @@ class DirCache():
             self.listing = []
         else:
             self.listing = os.listdir(self.path)
+        random.shuffle(self.listing)
+        self.offset = 0
 
     def __len__(self):
         self.refresh()
@@ -43,6 +46,14 @@ class DirCache():
     def __getitem__(self, key):
         self.refresh()
         return self.listing.__getitem__(key)
+
+    def pop(self):
+        self.refresh()
+        if self.offset >= len(self.listing):
+            return None
+        item = self.listing[self.offset]
+        self.offset += 1
+        return item
 
 def launch():
     env = os.environ.copy().update(
@@ -76,15 +87,12 @@ def choose(path, caches):
         if path not in caches:
             caches[path] = DirCache(path)
         cache = caches[path]
-        if len(cache) == 0:
-            return None
-        for x in range(1, 10):
-            name = random.choice(cache)
+        name = cache.pop()
+        if name is not None:
             choice = choose(os.path.join(path, name), caches)
             if choice is not None:
                 return choice
-    else:
-        return None
+    return None
 
 # This represents a way of storing files where
 # TODO xxxxxxxxxxxxxxxx
@@ -139,15 +147,20 @@ def loop(library, metadata):
                 continue
 
             # Queue a new item
-            choice = choose(library, caches)
-            if choice:
-                meta = metadata(choice)
-                title = "{when}: {description}".format(**meta)
+            for i in range(1, 100):
+                choice = choose(library, caches)
+                if choice:
+                    break
+            else:
+                continue
 
-                fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
+            meta = metadata(choice)
+            title = "{when}: {description}".format(**meta)
 
-                # This queues the file nicely
-                request("status.xml", command="in_enqueue", input=fileurl, name=title)
+            fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
+
+            # This queues the file nicely
+            request("status.xml", command="in_enqueue", input=fileurl, name=title)
 
             if first:
                 request("status.xml", command="pl_play")
