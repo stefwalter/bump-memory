@@ -109,6 +109,10 @@ def prune():
 
     remaining = 0
     if current is not None:
+        fullscreen = status.find('fullscreen')
+        if fullscreen is None or fullscreen.text == "false":
+           request("status.xml", command="fullscreen")
+
         playlist = request("playlist.xml")
         for leaf in playlist.iter("leaf"):
             if remaining:
@@ -160,11 +164,10 @@ def loop(library, metadata):
             fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
 
             # This queues the file nicely
-            request("status.xml", command="in_enqueue", input=fileurl, name=title)
+            status = request("status.xml", command="in_enqueue", input=fileurl, name=title)
 
             if first:
                 request("status.xml", command="pl_play")
-                request("status.xml", command="fullscreen")
                 first = False
     finally:
         if proc:
