@@ -1,0 +1,13 @@
+#!/bin/sh -ex
+
+input="$3"
+base="${3%.*}"
+suffix="${3##*.}"
+cut="${base}-trim.${suffix}"
+
+start="$1"
+duration=$(ffprobe -i "$input" -show_entries format=duration -v quiet -of csv="p=0")
+trim=$(echo "$duration" - "$2" - "$start" | bc)
+
+ffmpeg -i "$input" -ss "$start" -t "$trim" -acodec copy -vcodec copy "$cut"
+touch "--reference=$input" "$cut"
