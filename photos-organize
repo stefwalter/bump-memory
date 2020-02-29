@@ -136,7 +136,7 @@ def process(target, root):
             path = os.path.join(directory, name)
             if compare(path, name, known):
                 os.makedirs(trash, exist_ok=True)
-                os.link(path, os.path.join(trash, name))
+                os.rename(path, os.path.join(trash, name))
             elif os.path.isfile(path):
                 archive(path, target, known)
 
