@@ -61,7 +61,8 @@ def launch():
     )
 
     proc = subprocess.Popen([
-        "vlc", "-I", "http",
+        "vlc", "-v", "--avcodec-hw=none",
+        "-I", "http",
         "--http-port", str(PORT),
         "--http-password", PASSWORD,
     ], env=env, stdin=subprocess.DEVNULL)
