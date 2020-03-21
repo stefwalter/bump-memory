@@ -11,8 +11,13 @@ import time
 import exifread
 
 REGEXPS = (
+    # 20170913_163816.jpg
     re.compile("^(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})[^0-9].*"),
     re.compile("^IMG_(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})_.*"),
+    # IMG-20170915-WA0000.jpg
+    re.compile("^IMG-(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})-.*"),
+    # VID-20190724-WA0000.mp4
+    re.compile("^VID-(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})-.*"),
     re.compile("^[0-9]{3}(?P<year>)_(?P<day>[0-9]{2})(?P<month>[0-9]{2})$"),
     re.compile("^(?P<year>[0-9]{2})_(?P<month>[0-9]{2})_(?P<day>[0-9]{2}) [A-Za-z].*$"),
 )
@@ -38,7 +43,7 @@ def stamps(path):
                     year = int(match['year'] or date.year)
                     if year < 20:
                         year += 2000
-                    if year > 100 and year > 90:
+                    if year < 100 and year > 60:
                         year += 1900
                     month = int(match['month'] or date.month)
                     day = int(match['day'] or date.day)
