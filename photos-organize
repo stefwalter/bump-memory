@@ -107,8 +107,7 @@ def archive(path, target, known):
     sys.stderr.write("{0}\n".format(name))
     shutil.move(path, os.path.join(dest, name))
 
-def index(root):
-    result = { }
+def index(root, result):
     def add(key, value):
         if key not in result:
             result[key] = []
@@ -124,7 +123,6 @@ def index(root):
             if name.endswith(".mp4"):
                 name = name[:-4] + ".MOV"
                 add(name, path)
-    return result
 
 def compare(path, name, known):
     for check in known.get(name, []):
@@ -132,9 +130,10 @@ def compare(path, name, known):
             return True
     return False
 
-def process(target, root):
-    assert target != root
-    known = index(root)
+def process(target, roots):
+    known = { }
+    for root in roots:
+        index(root, known)
     trash = os.path.join(target, "dup")
     for (directory, unused, names) in os.walk(target):
         for name in names:
@@ -147,8 +146,8 @@ def process(target, root):
 
 def main(argv):
     parser = argparse.ArgumentParser(description='Organize photos')
-    parser.add_argument('root', help="The directory to organize")
     parser.add_argument('target', help="The directory to organize")
+    parser.add_argument('roots', nargs='+', help="The directory to organize")
     opts = parser.parse_args()
 
     # If this directory exists we're already sorted
@@ -157,7 +156,12 @@ def main(argv):
          sys.stderr.write("Refusing to run in processed directory\n")
          return 2
 
-    process(opts.target, opts.root)
+    for root in opts.roots:
+        if os.path.realpath(root) == os.path.realpath(opts.target):
+            sys.stderr.write("Root is same as target\n")
+            return 2
+
+    process(opts.target, opts.roots)
     return 0
 
 if __name__ == "__main__":
