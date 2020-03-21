@@ -6,6 +6,7 @@ PASSWORD = "foobar"
 
 import argparse
 import base64
+import fnmatch
 import os
 import random
 import subprocess
@@ -16,6 +17,15 @@ import xml.etree.ElementTree
 
 import http.client
 http.client.HTTPConnection.debuglevel = 1
+
+BLACKLIST = (
+    '*/*.THM',     # Lousy quality
+    '*/MVI_*.AVI', # Don't play on our TV
+    '*naked*/*',
+    '*Naked*/*',
+    '*nude*/*',
+    '*Nude*/*',
+)
 
 class DirCache():
     def __init__(self, path):
@@ -81,6 +91,13 @@ def request(path, **options):
     req = urllib.request.Request(url + "?" + qs)
     req.add_header("Authorization", authorization())
     return xml.etree.ElementTree.parse(urllib.request.urlopen(req))
+
+def blacklisted(path):
+    for match in BLACKLIST:
+        sys.stderr.write("matching {} {}\n".format(path, match))
+        if fnmatch.fnmatch(path, match):
+            return True
+    return False
 
 def choose(path, caches):
     if os.path.isfile(path):
@@ -155,7 +172,7 @@ def loop(library, metadata):
             # Queue a new item
             for i in range(1, 100):
                 choice = choose(library, caches)
-                if choice:
+                if choice and not blacklisted(choice):
                     break
             else:
                 continue
