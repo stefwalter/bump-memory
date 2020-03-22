@@ -57,9 +57,10 @@ class DirCache():
         self.refresh()
         return self.listing.__getitem__(key)
 
-    def pop(self):
+    def next(self):
         self.refresh()
         if self.offset >= len(self.listing):
+            self.offset = 0
             return None
         item = self.listing[self.offset]
         self.offset += 1
@@ -105,7 +106,7 @@ def choose(path, caches):
         if path not in caches:
             caches[path] = DirCache(path)
         cache = caches[path]
-        name = cache.pop()
+        name = cache.next()
         if name is not None:
             choice = choose(os.path.join(path, name), caches)
             if choice is not None:
@@ -144,10 +145,18 @@ def prune():
 
     return remaining
 
-def loop(library, metadata):
+def content(library):
     caches = { }
+    while True:
+        choice = choose(library, caches)
+        if choice and not blacklisted(choice):
+            yield choice
+    yield None
+
+def display(library, metadata):
     first = False
     proc = None
+    choices = content(library)
 
     try:
         while True:
@@ -168,12 +177,8 @@ def loop(library, metadata):
             if prune() > 3:
                 continue
 
-            # Queue a new item
-            for i in range(1, 100):
-                choice = choose(library, caches)
-                if choice and not blacklisted(choice):
-                    break
-            else:
+            choice = next(choices)
+            if not choice:
                 continue
 
             meta = metadata(choice)
@@ -198,12 +203,24 @@ def kill(proc):
         proc.wait()
     return proc.returncode
 
+def listing(library):
+    for choice in content(library):
+        if not choice:
+            break
+        sys.stdout.write(choice)
+        sys.stdout.write("\n")
+
 def main():
     parser = argparse.ArgumentParser(description="Displays photos or videos via VLC")
+    parser.add_argument("-n", "--dry-run", action='store_true', help="only list what would be displayed")
     parser.add_argument("library", help="path to photo library")
     opts = parser.parse_args()
 
-    loop(opts.library, metadata=dated)
+    if opts.dry_run:
+        listing(opts.library)
+    else:
+        display(opts.library, metadata=dated)
+
     return 0
 
 if __name__ == '__main__':
