@@ -94,7 +94,6 @@ def request(path, **options):
 
 def blacklisted(path):
     for match in BLACKLIST:
-        sys.stderr.write("matching {} {}\n".format(path, match))
         if fnmatch.fnmatch(path, match):
             return True
     return False
