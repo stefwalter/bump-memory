@@ -128,10 +128,6 @@ def prune():
 
     remaining = 0
     if current is not None:
-        fullscreen = status.find('fullscreen')
-        if fullscreen is None or fullscreen.text == "false":
-           request("status.xml", command="fullscreen")
-
         playlist = request("playlist.xml")
         for leaf in playlist.iter("leaf"):
             if remaining:
