@@ -2,7 +2,7 @@
 Name=Memories
 Comment=Memory
 Icon=/usr/share/pixmaps/openbox.xpm
-Exec=lxterminal -t "Memories" -e "/home/pi/bump-memory/bump-memory /media/pi/Elements/Photos"
+Exec=lxterminal -t "Memories" -e "/home/pi/bump-memory/bump-memory /media/pi/Life/Photos"
 Type=Application
 Encoding=UTF-8
 Terminal=false
