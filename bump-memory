@@ -73,7 +73,8 @@ def launch():
 
     proc = subprocess.Popen([
         "vlc", "-v",
-        "--avcodec-hw=none", "--fullscreen",
+        "--avcodec-hw=none",
+        "--fullscreen",
         "-I", "http",
         "--http-port", str(PORT),
         "--http-password", PASSWORD,
@@ -122,25 +123,26 @@ def dated(path):
     when = when.replace("-00", "")
     return { "when": when, "description": title }
 
-def prune():
-    # Ask for status and check if on playlist item
-    status = request("status.xml")
+def prune(status):
     current = status.find('currentplid')
 
-    remaining = 0
-    if current is not None:
-        playlist = request("playlist.xml")
-        for leaf in playlist.iter("leaf"):
-            if remaining:
-                remaining += 1
-            else:
-                id = leaf.attrib.get("id")
-                if id == current.text:
-                    remaining = 1
-                else:
-                    request("status.xml", command="pl_delete", id=id)
+    before = []
+    queued = []
+    playlist = request("playlist.xml")
+    for leaf in playlist.iter("leaf"):
+        id = leaf.attrib.get("id")
+        if queued:
+            queued.append(id)
+        elif current is None or id == current.text or current.text == '-1':
+            queued.append(id)
+        else:
+            before.append(id)
 
-    return remaining
+    # Delete all but last ten
+    for id in before[0:-10]:
+        request("status.xml", command="pl_delete", id=id)
+
+    return len(queued)
 
 def content(library):
     caches = { }
@@ -151,7 +153,6 @@ def content(library):
     yield None
 
 def display(library, metadata):
-    first = False
     proc = None
     choices = content(library)
 
@@ -170,25 +171,25 @@ def display(library, metadata):
             except subprocess.TimeoutExpired:
                 pass
 
+            status = request("status.xml")
+
             # Prune playlist and check if we need more
-            if prune() > 3:
-                continue
+            if prune(status) < 3:
+                choice = next(choices)
+                if not choice:
+                    continue
 
-            choice = next(choices)
-            if not choice:
-                continue
+                meta = metadata(choice)
+                title = "{when}: {description}".format(**meta)
 
-            meta = metadata(choice)
-            title = "{when}: {description}".format(**meta)
+                fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
 
-            fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
+                # This queues the file nicely
+                status = request("status.xml", command="in_enqueue", input=fileurl, name=title)
 
-            # This queues the file nicely
-            status = request("status.xml", command="in_enqueue", input=fileurl, name=title)
-
-            if first:
+            current = status.find('currentplid')
+            if current is None or current.text == '-1':
                 request("status.xml", command="pl_play")
-                first = False
     finally:
         if proc:
             kill(proc)
