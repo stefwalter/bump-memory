@@ -119,6 +119,7 @@ def dated(path):
     # The name of the folder should have a date and text
     directory = os.path.basename(os.path.dirname(path))
     when, unused, title = directory.partition(" ")
+    when = when.replace("-00", "")
     return { "when": when, "description": title }
 
 def prune():
