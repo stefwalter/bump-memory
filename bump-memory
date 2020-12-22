@@ -32,6 +32,7 @@ class DirCache():
         self.path = path
         self.mtime = None
         self.listing = listing or []
+        random.shuffle(self.listing)
         self.offset = 0
 
     def refresh(self):
