@@ -147,7 +147,7 @@ def process(target, roots):
 def main(argv):
     parser = argparse.ArgumentParser(description='Organize photos')
     parser.add_argument('target', help="The directory to organize")
-    parser.add_argument('roots', nargs='+', help="The directory to organize")
+    parser.add_argument('roots', nargs='+', help="The existing organized roots")
     opts = parser.parse_args()
 
     # If this directory exists we're already sorted
