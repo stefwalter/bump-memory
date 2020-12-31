@@ -1,0 +1,25 @@
+#!/bin/sh -ex
+
+while [ $# -gt 0 ]; do
+	input="$1"
+	base="${1%.*}"
+	suffix="${1##*.}"
+	output="${base}-low.${suffix}"
+	args=""
+
+	lines=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "$input")
+	if [ $lines -gt 1080 ]; then
+		args="$args -vf scale=1920:1080"
+	fi
+
+	frames=$(ffprobe -v 0 -of csv=p=0 -select_streams v:0 -show_entries stream=r_frame_rate "$input" | bc)
+	if [ $frames -gt 30 ]; then
+		args="$args -r 30"
+	fi
+
+	if [ -n "$args" -a \! -e "$output" ]; then
+		ffmpeg -i "$input" $args -c:v libx264 -crf 20 -preset slow "$output"
+		touch "--reference=$input" "$output"
+	fi
+	shift
+done
