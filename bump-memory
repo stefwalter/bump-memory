@@ -231,7 +231,7 @@ def display(library, metadata):
                 request("status.xml", command="pl_loop")
 
             # Prune playlist and check if we need more
-            elif prune(status) < 3:
+            elif prune(status) < 10:
                 choice = next(choices)
                 if not choice:
                     continue
