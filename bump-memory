@@ -43,10 +43,14 @@ class DirCache():
         if mtime == self.mtime:
             return
         self.mtime = mtime
-        if self.mtime is None:
+        try:
+            if mtime is None:
+                self.listing = []
+            else:
+                path = os.path.abspath(self.path)
+                self.listing = [os.path.join(path, name) for name in os.listdir(path)]
+        except PermissionError:
             self.listing = []
-        else:
-            self.listing = [os.path.join(self.path, name) for name in os.listdir(self.path)]
         random.shuffle(self.listing)
         self.offset = 0
 
