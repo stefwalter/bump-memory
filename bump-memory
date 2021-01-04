@@ -113,7 +113,6 @@ def choose(path, caches):
             caches[path] = DirCache(path)
         cache = caches[path]
         name = cache.next()
-        # print(repr(name))
         if name is not None:
             choice = choose(name, caches)
             if choice is not None:
@@ -150,6 +149,42 @@ def prune(status):
 
     return len(queued)
 
+# Focus in on the current folder. Remove everything
+# else from the playlist and load just the current
+# folder into the queue
+def focus(status, metadata):
+    current = status.find('currentplid')
+
+    remove = []
+    uri = None
+
+    playlist = request("playlist.xml")
+    for leaf in playlist.iter("leaf"):
+        id = leaf.attrib.get("id")
+
+        # Remove any ids not in current set
+        if current is not None and current.text == id:
+            uri = leaf.attrib.get("uri")
+        else:
+            remove.append(id)
+
+    # No current uri so no way to focus
+    if not uri:
+        return
+
+    # Parse the URI into a path
+    parsed = urllib.parse.urlparse(urllib.parse.unquote(uri))
+    path = os.path.dirname(os.path.join(parsed.netloc, parsed.path))
+
+    # Enqueue everything in the folder
+    for name in os.listdir(path):
+        enqueue(os.path.join(path, name), metadata)
+
+    # Delete all other items
+    for id in remove:
+        request("status.xml", command="pl_delete", id=id)
+
+
 def content(libraries):
     caches = { "" : DirCache(None, listing=libraries) }
     while True:
@@ -157,6 +192,13 @@ def content(libraries):
         if choice and not blacklisted(choice):
             yield choice
     yield None
+
+def enqueue(path, metadata):
+    meta = metadata(path)
+    title = "{when}: {description}".format(**meta)
+
+    fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(path))
+    return request("status.xml", command="in_enqueue", input=fileurl, name=title)
 
 def display(library, metadata):
     proc = None
@@ -178,20 +220,23 @@ def display(library, metadata):
                 pass
 
             status = request("status.xml")
+            # xml.etree.ElementTree.dump(status)
+
+            # Check if looping and if so focus on current folder
+            loop = status.find('loop')
+            if loop is not None and loop.text == 'true':
+                focus(status, metadata)
+
+                # Turn off looping
+                request("status.xml", command="pl_loop")
 
             # Prune playlist and check if we need more
-            if prune(status) < 3:
+            elif prune(status) < 3:
                 choice = next(choices)
                 if not choice:
                     continue
 
-                meta = metadata(choice)
-                title = "{when}: {description}".format(**meta)
-
-                fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(choice))
-
-                # This queues the file nicely
-                status = request("status.xml", command="in_enqueue", input=fileurl, name=title)
+                status = enqueue(choice, metadata)
 
             current = status.find('currentplid')
             if current is None or current.text == '-1':
