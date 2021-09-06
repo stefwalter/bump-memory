@@ -176,11 +176,12 @@ def focus(status, metadata):
     parsed = urllib.parse.urlparse(urllib.parse.unquote(uri))
     path = os.path.dirname(os.path.join(parsed.netloc, parsed.path))
 
-    # Enqueue everything in the folder
+    # Enqueue everything in the folder except current file
     for name in os.listdir(path):
-        enqueue(os.path.join(path, name), metadata)
+        if name != os.path.basename(parsed.path):
+            enqueue(os.path.join(path, name), metadata)
 
-    # Delete all other items
+    # Delete all other playlist items
     for id in remove:
         request("status.xml", command="pl_delete", id=id)
 
