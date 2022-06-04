@@ -120,13 +120,17 @@ def choose(path, caches):
     return None
 
 # This represents a way of storing files where
-# TODO xxxxxxxxxxxxxxxx
+# the filename is a iso8601 date with a space and text
 def dated(path):
     # The name of the folder should have a date and text
     directory = os.path.basename(os.path.dirname(path))
     when, unused, title = directory.partition(" ")
     when = when.replace("-00", "")
     return { "when": when, "description": title }
+
+# Return no text, quiet behavior for titles
+def quiet(path):
+    return { "when": "", "description": "" }
 
 def prune(status):
     current = status.find('currentplid')
@@ -197,6 +201,7 @@ def content(libraries):
 def enqueue(path, metadata):
     meta = metadata(path)
     title = "{when}: {description}".format(**meta)
+    title = title.strip(": ")
 
     fileurl = urllib.parse.urljoin("file:", urllib.request.pathname2url(path))
     return request("status.xml", command="in_enqueue", input=fileurl, name=title)
@@ -263,13 +268,15 @@ def listing(library):
 def main():
     parser = argparse.ArgumentParser(description="Displays photos or videos via VLC")
     parser.add_argument("-n", "--dry-run", action='store_true', help="only list what would be displayed")
+    parser.add_argument("-q", "--quiet", action='store_true', help="don't show text or titles")
     parser.add_argument("library", nargs='+', help="path to photo libraries")
     opts = parser.parse_args()
 
+    metadata = opts.quiet and quiet or dated
     if opts.dry_run:
         listing(opts.library)
     else:
-        display(opts.library, metadata=dated)
+        display(opts.library, metadata=metadata)
 
     return 0
 
