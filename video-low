@@ -18,7 +18,7 @@ while [ $# -gt 0 ]; do
 	fi
 
 	if [ -n "$args" -a \! -e "$output" ]; then
-		ffmpeg -i "$input" $args -c:v libx264 -crf 20 -preset slow "$output"
+		ffmpeg -i "$input" $args -c:v libx264 -crf 20 -preset slow -g 30 "$output"
 		touch "--reference=$input" "$output"
 	fi
 	shift
