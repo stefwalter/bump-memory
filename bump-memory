@@ -25,6 +25,8 @@ BLACKLIST = (
     '*Naked*/*',
     '*nude*/*',
     '*Nude*/*',
+    '*attack*/*',
+    '*Attack*/*',
     '*/dup/*',
 )
 
