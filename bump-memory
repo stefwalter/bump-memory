@@ -18,9 +18,17 @@ import xml.etree.ElementTree
 import http.client
 http.client.HTTPConnection.debuglevel = 1
 
-BLACKLIST = (
+ALL = ( '*/*' )
+
+VIDEOS = (
+    '*/*.MOV',
+    '*/*.mov',
+    '*/*.MP4',
+    '*/*.mp4'
+)
+
+DENYLIST = (
     '*/*.THM',     # Lousy quality
-    '*/MVI_*.AVI', # Don't play on our TV
     '*naked*/*',
     '*Naked*/*',
     '*nude*/*',
@@ -102,8 +110,11 @@ def request(path, **options):
     req.add_header("Authorization", authorization())
     return xml.etree.ElementTree.parse(urllib.request.urlopen(req))
 
-def blacklisted(path):
-    for match in BLACKLIST:
+def gate(path, only):
+    for match in DENYLIST:
+        if fnmatch.fnmatch(path, match):
+            return False
+    for match in only:
         if fnmatch.fnmatch(path, match):
             return True
     return False
@@ -193,15 +204,15 @@ def focus(status, metadata):
         request("status.xml", command="pl_delete", id=id)
 
 
-def weighted(libraries):
+def weighted(libraries, only):
     caches = { "" : DirCache(None, listing=libraries) }
     while True:
         choice = choose("", caches)
-        if choice and not blacklisted(choice):
+        if choice and gate(choice, only):
             yield choice
     yield None
 
-def flattened(libraries):
+def flattened(libraries, only):
     while True:
         listing = []
         for library in libraries:
@@ -210,8 +221,9 @@ def flattened(libraries):
                     listing.append(os.path.join(root, file))
         random.shuffle(listing)
         for choice in listing:
-            if not blacklisted(choice):
-                yield choice
+            if gate(choice, only):
+               yield choice
+        break
 
 def enqueue(path, metadata):
     meta = metadata(path)
@@ -284,14 +296,16 @@ def main():
     parser.add_argument("-n", "--dry-run", action='store_true', help="only list what would be displayed")
     parser.add_argument("-q", "--quiet", action='store_true', help="don't show text or titles")
     parser.add_argument("--weighted", action='store_true', help="Weight events/directories evenly")
+    parser.add_argument("--video", action='store_true', help="Only show videos")
     parser.add_argument("library", nargs='+', help="path to photo libraries")
     opts = parser.parse_args()
 
+    only = opts.video and VIDEOS or ALL
     metadata = opts.quiet and quiet or dated
     if opts.weighted:
-        choices = weighted(opts.library)
+        choices = weighted(opts.library, only)
     else:
-        choices = flattened(opts.library)
+        choices = flattened(opts.library, only)
 
     if opts.dry_run:
         listing(choices)
