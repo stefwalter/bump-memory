@@ -57,7 +57,10 @@ def stamps(path):
     tag = None
     if not results and os.path.isfile(path):
         with open(path, 'rb') as f:
-            tags = exifread.process_file(f)
+            try:
+                tags = exifread.process_file(f)
+            except exifread.heic.NoParser:
+                tags = { }
         tag = tags.get("EXIF DateTimeOriginal")
         if not tag:
             tag = tags.get("EXIF DateTimeDigitized")
