@@ -14,6 +14,7 @@ REGEXPS = (
     # 20170913_163816.jpg
     re.compile("^(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})[^0-9].*"),
     re.compile("^IMG_(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})_.*"),
+    re.compile("^VID_(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})_.*"),
     # IMG-20170915-WA0000.jpg
     re.compile("^IMG-(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})-.*"),
     # VID-20190724-WA0000.mp4
