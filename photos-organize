@@ -21,6 +21,17 @@ REGEXPS = (
     re.compile("^VID-(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})-.*"),
     re.compile("^[0-9]{3}(?P<year>)_(?P<day>[0-9]{2})(?P<month>[0-9]{2})$"),
     re.compile("^(?P<year>[0-9]{2})_(?P<month>[0-9]{2})_(?P<day>[0-9]{2}) [A-Za-z].*$"),
+    # WhatsApp Video 2023-09-22 at 12.54.58.mp4
+    re.compile("^WhatsApp Video (?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2}) .*"),
+    re.compile("^WhatsApp Image (?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2}) .*"),
+    # album_2023-12-22_20-04-24.gif
+    re.compile("album_(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})-.*"),
+    # DSC_PRT_20240330122009079.jpg
+    re.compile("^DSC_PRT_(?P<year>[0-9]{4})(?P<month>[0-9]{2})(?P<day>[0-9]{2})[0-9].*"),
+    # Video Clip (2024-05-08_11-07-53-016).mp4
+    re.compile("^Video Clip \\((?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})_.*"),
+    # signal-2024-07-31-095016_002.jpeg
+    re.compile("^signal-(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})-.*"),
 )
 
 def stamps(path):
