@@ -16,7 +16,7 @@ import urllib.request
 import xml.etree.ElementTree
 
 import http.client
-http.client.HTTPConnection.debuglevel = 1
+# http.client.HTTPConnection.debuglevel = 1
 
 ALL = ( '*/*' )
 
@@ -37,6 +37,8 @@ DENYLIST = (
     '*Attack*/*',
     '*/dup/*',
 )
+
+QUEUED = 10
 
 class DirCache():
     def __init__(self, path, listing=None):
@@ -105,8 +107,10 @@ def authorization():
 def request(path, **options):
     url = urllib.parse.urljoin(URL, path)
     qs = urllib.parse.urlencode(options, quote_via=urllib.parse.quote)
-    sys.stderr.write(qs + "\n")
-    req = urllib.request.Request(url + "?" + qs)
+    # sys.stderr.write(qs + "\n")
+    if qs:
+        qs = "?" + qs
+    req = urllib.request.Request(url + qs)
     req.add_header("Authorization", authorization())
     return xml.etree.ElementTree.parse(urllib.request.urlopen(req))
 
@@ -148,21 +152,29 @@ def quiet(path):
 
 def prune(status):
     current = status.find('currentplid')
+    if current:
+        current = current.text
 
     before = []
     queued = []
     playlist = request("playlist.xml")
+    # xml.etree.ElementTree.dump(playlist)
     for leaf in playlist.iter("leaf"):
         id = leaf.attrib.get("id")
+        sys.stderr.write(id + " " + repr(current) + "\n")
+        if not current:
+            if leaf.attrib.get("current"):
+                current = id
         if queued:
             queued.append(id)
-        elif current is None or id == current.text or current.text == '-1':
+        elif current is None or id == current or current == '-1':
             queued.append(id)
         else:
             before.append(id)
 
     # Delete all but last ten
-    for id in before[0:-10]:
+    for id in before[0:-QUEUED]:
+        sys.stderr.write("PRUNING " + id + "\n")
         request("status.xml", command="pl_delete", id=id)
 
     return len(queued)
@@ -252,7 +264,7 @@ def display(choices, metadata):
                 pass
 
             status = request("status.xml")
-            # xml.etree.ElementTree.dump(status)
+            xml.etree.ElementTree.dump(status)
 
             # Check if looping and if so focus on current folder
             loop = status.find('loop')
@@ -263,8 +275,11 @@ def display(choices, metadata):
                 request("status.xml", command="pl_loop")
 
             # Prune playlist and check if we need more
-            elif prune(status) < 10:
-                choice = next(choices)
+            elif prune(status) < QUEUED:
+                try:
+                    choice = next(choices)
+                except StopIteration:
+                    choice = None
                 if not choice:
                     continue
 
